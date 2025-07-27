@@ -1,4 +1,6 @@
+use gif::{Encoder, Frame, Repeat};
 use raylib::prelude::*;
+use std::fs::File;
 
 pub struct FrameBuffer {
     pub width: i32,
@@ -51,5 +53,34 @@ impl FrameBuffer {
         } else {
             eprintln!("Failed to load texture from image.");
         }
+    }
+
+    pub fn export_gif(
+        &self,
+        frames: Vec<Image>,
+        path: &str,
+        delay_centis: u16,
+    ) -> Result<(), String> {
+        let mut image_file = File::create(path).map_err(|e| e.to_string())?;
+        let mut encoder = Encoder::new(&mut image_file, self.width as u16, self.height as u16, &[])
+            .map_err(|e| e.to_string())?;
+        encoder
+            .set_repeat(Repeat::Infinite)
+            .map_err(|e| e.to_string())?;
+
+        for img in frames {
+            let raw = img.get_image_data();
+            let pixels = img
+                .get_image_data()
+                .iter()
+                .flat_map(|color| vec![color.r, color.g, color.b])
+                .collect::<Vec<u8>>();
+
+            let mut frame = Frame::from_rgb(self.width as u16, self.height as u16, &pixels);
+            frame.delay = delay_centis;
+            encoder.write_frame(&frame).map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
     }
 }
